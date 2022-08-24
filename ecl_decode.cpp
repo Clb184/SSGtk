@@ -31,7 +31,7 @@ void ECLDecode(const char* f)
 
 	readECLIns(fp, sub, lab, header.enm);
 
-	printf("\n\nEnemies{\n");
+	printf("\n\nEnemy{\n");
 	for (int i = 0; i < header.enm ; i++)
 	{
 		std::cout << "	Sub" << sub[header.enmSub[i]] << ", //" << i << "\n";
@@ -64,18 +64,22 @@ void readECLIns(FILE*& fp, ADDRESS sub, ADDRESS lab, uint32_t enm)
 	
 
 	#define SUB fread(&add, 4, 1, fp); std::cout << "Sub" << sub[add]; pos +=4;
-	#define LAB fread(&add, 4, 1, fp); printf("Lab_%d", add); pos +=4;
+	#define LAB fread(&add, 4, 1, fp); printf("Lab_%d", lab[add]); pos +=4;
 
 
 	while (pos < epos)
 	{
 		if (sub.find(pos) != sub.end())
 		{
+			if (sub[pos] == 52)
+			{
+				int a = 0;
+			}
 			printf("\n\n@Sub%d:", sub[pos]);
 		}
-		else if (lab.find(pos) != lab.end())
+		if (lab.find(pos) != lab.end())
 		{
-			printf("\n.Lab_%d:", pos);
+			printf("\n.Lab_%d:", lab[pos]);
 		}
 
 		fread(&cmd, 1, 1, fp); pos++;
@@ -168,9 +172,9 @@ void readECLIns(FILE*& fp, ADDRESS sub, ADDRESS lab, uint32_t enm)
 		case 0xA9: B break;
 		case 0xAA: B break;
 		case 0xAB: DW break;
-		case 0xAC: B break;
+		case 0xAC: B CO DW break;
 		case 0xAD: B break;
-		case 0xAE: W CO W break;
+		case 0xAE: W CO W CO CH break;
 				   
 		case 0xB0: REG CO REG break;
 		case 0xB1: REG CO DW break;
@@ -233,7 +237,7 @@ void getECLAddress(FILE* fp, ADDRESS& sub, ADDRESS& lab)
 		switch (cmd)
 		{
 		case 0x00: /*fseek(fp, -1, SEEK_SET); address = lv; if (sub.find(address) == sub.end()) { sub.insert({address, address}); }
-				 fseek(fp, 1, SEEK_SET); */AC(8) break;
+				 fseek(fp, 1, SEEK_SET); */ AC(8) break;
 		case 0x02: GLADD break;
 		case 0x03: GLADD AC(2)  break;
 		case 0x04: GSADD 
