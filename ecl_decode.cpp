@@ -1,515 +1,352 @@
 #include "ecl_decode.h"
 
 
-static void ECLDecode(char* buffer, long lSize)
+void ECLDecode(const char* f)
 {
-	int lv = 0;
-	ECLHeader header(EconvCharInt(buffer[0], buffer[1], buffer[2], buffer[3]));
-	lv += (header.enm + 1) * sizeof(int);
+	FILE* fp;
+	ECLHeader header;
 
+	fp = fopen(f, "rb");
+	if (fp == NULL)
+	{
+		printf("An error ocurred while opening file.\n");
+		exit(-1);
+	}
 
+	fread(&header, sizeof(uint32_t), 1, fp );
 	
-	while (lv < lSize)
+	header.enmSub = new uint32_t[header.enm];
+	fread(&header.enmSub[0], sizeof(uint32_t), header.enm, fp);
+
+	ADDRESS sub;
+	ADDRESS lab;
+	getECLHeaderAdd(header, sub);
+	getECLAddress(fp, sub, lab);
+	int i = 0;
+	for (ADDRESS::iterator it = sub.begin();  it != sub.end(); ++it)
 	{
-		unsigned char chara = buffer[lv];
+		it->second = i;
+		i++;
+	}
 
-		bool ins95 = (chara >= 0x90 && chara <= 0x9f);
+	readECLIns(fp, sub, lab, header.enm);
 
-			EclCmd0(buffer, lv);
-			EclCmd1(buffer, lv);
-			EclCmd2(buffer, lv);
-			EclCmd45(buffer, lv);
-			EclCmd67(buffer, lv);
-			EclCmd8(buffer, lv);
-			EclCmd9(buffer, lv);
-			EclCmdA(buffer, lv);
-			EclCmdB(buffer, lv);
-			printf("\n");
+	printf("\n\nEnemies{\n");
+	for (int i = 0; i < header.enm ; i++)
+	{
+		std::cout << "	Sub" << sub[header.enmSub[i]] << ", //" << i << "\n";
+	}
+	printf("}");
+	fclose(fp);
+}
+
+#define AnotherOp
+void readECLIns(FILE*& fp, ADDRESS sub, ADDRESS lab, uint32_t enm)
+{
+	DWORD add = 0x00000000;
+	fseek(fp, 0, SEEK_END);
+	QWORD epos = ftell(fp);
+	rewind(fp);
+	fseek(fp, sizeof(int) * (enm + 1), SEEK_SET);
+	QWORD pos = ftell(fp);
+	BYTE cmd, reg = 0x00;
+
+
+	#define REG fread(&reg, 1, 1, fp); printf("[%d]", reg); pos++;
+
+	#define CH rC(fp, 0b0, true); pos++;
+	#define W rC(fp, 0b1, true); pos+=2;
+	#define DW rC(fp, 0b10, true); pos +=4;
+	
+	#define B rC(fp, 0b0, false); pos++;
+	#define UW rC(fp, 0b1, false); pos+=2;
+	#define UDW rC(fp, 0b10, false); pos+=4;
+	
+
+	#define SUB fread(&add, 4, 1, fp); std::cout << "Sub" << sub[add]; pos +=4;
+	#define LAB fread(&add, 4, 1, fp); printf("Lab_%d", add); pos +=4;
+
+
+	while (pos < epos)
+	{
+		if (sub.find(pos) != sub.end())
+		{
+			printf("\n\n@Sub%d:", sub[pos]);
+		}
+		else if (lab.find(pos) != lab.end())
+		{
+			printf("\n.Lab_%d:", pos);
+		}
+
+		fread(&cmd, 1, 1, fp); pos++;
+		std::cout << "\n	" << ECLIns[cmd] << " ";
+		switch (cmd)
+		{
+		case 0x00: UDW CO UDW break;
+		case 0x02: LAB break;
+		case 0x03: LAB CO UW break;
+		case 0x04: SUB break;
+		case 0x06: LAB CO UDW break;
+		case 0x07: LAB CO UDW break;
+		case 0x08: LAB CO LAB CO LAB CO LAB break;
+		case 0x09: LAB break;
+		case 0x0A: LAB CO UDW break;
+		case 0x0B: LAB CO UDW break;
+		case 0x0C: LAB CO B CO UDW break;
+		case 0x0D: B break;
+				   
+		case 0x10: UW break;
+		case 0x11: UW break;
+		case 0x12: UW break;
+		case 0x13: CH CO UW break;
+		case 0x14: DW CO DW CO CH CO UW break;
+		case 0x15: DW CO B CO B CO UW break;
+		case 0x16: DW CO B CO B CO UW break;
+		case 0x17: W CO UW break;
+		case 0x18: W CO UW break;
+		case 0x19: W CO W CO UW break;
+		case 0x1A: UW break;
+		case 0x1B: UW break;
+		case 0x1C: UW break;
+		case 0x1D: CH CO W break;
+		case 0x1E: W CO W CO UW break;
+		case 0x1F: CH break;
+				   
+		case 0x20: B break;
+		case 0x21: CH break;
+		case 0x24: DW break;
+		case 0x25: DW break;
+		case 0x26: W CO W break;
+		case 0x27: W CO W break;
+		case 0x2E: W break;
+				   
+		case 0x41: B break;
+		case 0x42: W CO W break;
+		case 0x43: B break;
+		case 0x44: B CO B break;
+		case 0x45: CH CO CH break;
+		case 0x46: B CO B break;
+		case 0x47: CH CO CH break;
+		case 0x48: B CO CH break;
+		case 0x49: CH CO CH break;
+		case 0x4A: B break;
+		case 0x4B: B break;
+		case 0x4C: B break;
+		case 0x4D: CH break;
+		case 0x4E: B break;
+		case 0x54: B break;
+				   
+		case 0x61: B break;
+		case 0x62: DW break;
+		case 0x63: DW break;
+		case 0x64: DW break;
+		case 0x65: B CO B break;
+		case 0x66: CH CO CH break;
+		case 0x67: B break;
+		case 0x68: CH break;
+		case 0x69: DW break;
+		case 0x6A: DW break;
+		case 0x6B: B break;
+		case 0x6C: B break;
+		case 0x6D: DW break;
+		case 0x70: W CO W break;
+				   
+		case 0x81: B break;
+		case 0x82: B break;
+		case 0x83: B break;
+		case 0x84: B CO CH break;
+				   
+		case 0xA0: B CO B break;
+		case 0xA1: B break;
+		case 0xA2: B break;
+		case 0xA3: B break;
+		case 0xA4: W CO W CO B break;
+		case 0xA5: W CO W CO CH CO B break;
+		case 0xA6: W CO W break;
+		case 0xA7: B break;
+		case 0xA8: B break;
+		case 0xA9: B break;
+		case 0xAA: B break;
+		case 0xAB: DW break;
+		case 0xAC: B break;
+		case 0xAD: B break;
+		case 0xAE: W CO W break;
+				   
+		case 0xB0: REG CO REG break;
+		case 0xB1: REG CO DW break;
+		case 0xB2: REG CO REG break;
+		case 0xB3: REG CO REG break;
+		case 0xB4: REG CO REG break;
+		case 0xB5: REG CO REG break;
+		case 0xB6: REG CO DW break;
+		case 0xB7: REG break;
+		case 0xB8: REG CO REG break;
+		case 0xB9: REG CO DW break;
+		case 0xBA: LAB break;
+		case 0xBB: LAB break;
+		case 0xBC: REG break;
+		case 0xBD: REG break;
+		case 0xBE: LAB break;
+		}
+
 	}
 }
 
+#define CH rC(fp, 0, true);
+#define W rC(fp, 0b1, true);
+#define DW rC(fp, 0b10, true);
 
-static void EclCmd0(char* buffer, int& lv)
+#define B rC(fp, 0b0, false);
+#define UW rC(fp, 0b1, false);
+#define UDW rC(fp, 0b11, false);
+
+void getECLHeaderAdd(ECLHeader header, ADDRESS& sub)
 {
-	unsigned char chara = buffer[lv];
-	switch (chara)
+	for (int i = 0; i < header.enm; i++)
 	{
-	case 0x00:
-		printf("SETUP"); lv += 0x9;
-		break;
-	case 0x01:
-		printf("END"); lv++;
-		break;
-	case 0x02:
-		printf("JMP"); lv += 0x5;
-		break;
-	case 0x03:
-		printf("LOOP"); lv += 0x7;
-		break;
-	case 0x04:
-		printf("CALL"); lv += 0x5;
-		break;
-	case 0x05:
-		printf("RET"); lv++;
-		break;
-	case 0x06:
-		printf("JHPL"); lv += 0x9;
-		break;
-	case 0x07:
-		printf("JHPS"); lv += 0x9;
-		break;
-	case 0x08:
-		printf("JDIF"); lv += 0x11;
-		break;
-	case 0x09:
-		printf("JDSB"); lv += 0x5;
-		break;
-	case 0x0a:
-		printf("JFCL"); lv += 0x9;
-		break;
-	case 0x0b:
-		printf("JFCS"); lv += 0x9;
-		break;
-	case 0x0c:
-		printf("STI"); lv += 0xa;
-		break;
-	case 0x0d:
-		printf("CLI"); lv += 0x2;
-		break;
-	default:
-		break;
+		if (sub.find(header.enmSub[i]) == sub.end())
+		{
+			sub.insert({ header.enmSub[i], header.enmSub[i]});
+		}
 	}
 }
-static void EclCmd1(char* buffer, int& lv)
+
+void getECLAddress(FILE* fp, ADDRESS& sub, ADDRESS& lab)
 {
 
-	unsigned char chara = buffer[lv];
-	switch (chara)
-	{
-	case 0x10:
-		printf("NOP"); lv += 0x3;
-		break;
-	case 0x11:
-		printf("NOPSC"); lv += 0x3;
-		break;
-	case 0x12:
-		printf("MOV"); lv += 0x3;
-		break;
-	case 0x13:
-		printf("ROL"); lv += 0x4;
-		break;
-	case 0x14:
-		printf("LROL"); lv += 0xc;
-		break;
-	case 0x15:
-		printf("WAVX"); lv += 0x9;
-		break;
-	case 0x16:
-		printf("WAVY"); lv += 0x9;
-		break;
-	case 0x17:
-		printf("MXA"); lv += 0x5;
-		break;
-	case 0x18:
-		printf("MYA"); lv += 0x5;
-		break;
-	case 0x19:
-		printf("MXYA"); lv += 0x7;
-		break;
-	case 0x1a:
-		printf("MXS"); lv += 0x3;
-		break;
-	case 0x1b:
-		printf("MYS"); lv += 0x3;
-		break;
-	case 0x1c:
-		printf("MXYS"); lv += 0x3;
-		break;
-	case 0x1d:
-		printf("ACC"); lv += 0x4;
-		break;
-	case 0x1e:
-		printf("ACCXYA"); lv += 0x7;
-		break;
-	case 0x1f:
-		printf("GRAX"); lv += 0x2;
-		break;
-	default:
-		break;
-	}
-}
-static void EclCmd2(char* buffer, int& lv)
-{
+	DWORD address;
+	BYTE cmd = 0;
+	BYTE eInsCont[20];
 
-	unsigned char chara = buffer[lv];
-	switch (chara)
-	{
-	case 0x20:
-		printf("DEGA"); lv += 0x2;
-		break;
-	case 0x21:
-		printf("DEGR"); lv += 0x2;
-		break;
-	case 0x22:
-		printf("DEGX"); lv++;
-		break;
-	case 0x23:
-		printf("DEGS"); lv++;
-		break;
-	case 0x24:
-		printf("SPDA"); lv += 0x5;
-		break;
-	case 0x25:
-		printf("SPDR"); lv += 0x5;
-		break;
-	case 0x26:
-		printf("XYA"); lv += 0x5;
-		break;
-	case 0x27:
-		printf("XYR"); lv += 0x5;
-		break;
-	case 0x28:
-		printf("DEGXU"); lv++;
-		break;
-	case 0x29:
-		printf("DEGXD"); lv++;
-		break;
-	case 0x2a:
-		printf("DEGEX"); lv++;
-		break;
-	case 0x2b:
-		printf("XYS"); lv++;
-		break;
-	case 0x2c:
-		printf("DEGX2"); lv++;
-		break;
-	case 0x2d:
-		printf("XYRND"); lv++;
-		break;
-	case 0x2e:
-		printf("XYL"); lv += 0x3;
-		break;
-	default:
-		break;
-	}
-}
-static void EclCmd45(char* buffer, int& lv)
-{
+	DWORD lv = 0;
 
-	unsigned char chara = buffer[lv];
-	switch (chara)
-	{
-	case 0x40:
-		printf("TAMA"); lv++;
-		break;
-	case 0x41:
-		printf("TAUTO"); lv += 0x2;
-		break;
-	case 0x42:
-		printf("TXYR"); lv += 0x5;
-		break;
-	case 0x43:
-		printf("TCMD"); lv += 0x2;
-		break;
-	case 0x44:
-		printf("TDEGA"); lv += 0x3;
-		break;
-	case 0x45:
-		printf("TDEGR"); lv += 0x3;
-		break;
-	case 0x46:
-		printf("TNUMA"); lv += 0x3;
-		break;
-	case 0x47:
-		printf("TNUMR"); lv += 0x3;
-		break;
-	case 0x48:
-		printf("TSPDA"); lv += 0x3;
-		break;
-	case 0x49:
-		printf("TSPDR"); lv += 0x3;
-		break;
-	case 0x4a:
-		printf("TOPT"); lv += 0x2;
-		break;
-	case 0x4b:
-		printf("TTYPE"); lv += 0x2;
-		break;
-	case 0x4c:
-		printf("TCOL"); lv += 0x2;
-		break;
-	case 0x4d:
-		printf("TVDEG"); lv += 0x2;
-		break;
-	case 0x4e:
-		printf("TREP"); lv += 0x2;
-		break;
-	case 0x4f:
-		printf("TDEGS"); lv++;
-		break;
-	case 0x50:
-		printf("TDEGE"); lv++;
-		break;
-	case 0x51:
-		printf("TAMA2"); lv++;
-		break;
-	case 0x52:
-		printf("TCLR"); lv++;
-		break;
-	case 0x53:
-		printf("TAMAL"); lv++;
-		break;
-	case 0x54:
-		printf("T2ITEM"); lv += 0x2;
-		break;
-	case 0x55:
-		printf("TAMAEX"); lv++;
-		break;
-	default:
-		break;
-	}
-}
-static void EclCmd67(char* buffer, int& lv)
-{
+#define GSADD fread(&address, 4, 1, fp); if (sub.find(address) == sub.end()){sub.insert({ address, address });}lv +=4; //rAdd(fp, sub); lv+=4;
+#define GLADD fread(&address, 4, 1, fp); if (lab.find(address) == lab.end()){lab.insert({ address, address });}lv +=4; //rAdd(fp, lab); lv+=4;
 
-	unsigned char chara = buffer[lv];
-	switch (chara)
-	{
-	case 0x60:
-		printf("LASER"); lv++;
-		break;
-	case 0x61:
-		printf("LCMD"); lv += 0x2;
-		break;
-	case 0x62:
-		printf("LLA"); lv += 0x5;
-		break;
-	case 0x63:
-		printf("LLR"); lv += 0x5;
-		break;
-	case 0x64:
-		printf("LL2"); lv += 0x5;
-		break;
-	case 0x65:
-		printf("LDEGA"); lv += 0x3;
-		break;
-	case 0x66:
-		printf("LDEGR"); lv += 0x3;
-		break;
-	case 0x67:
-		printf("LNUMA"); lv += 0x2;
-		break;
-	case 0x68:
-		printf("LNUMR"); lv += 0x2;
-		break;
-	case 0x69:
-		printf("LSPDA"); lv += 0x5;
-		break;
-	case 0x6a:
-		printf("LSPDR"); lv += 0x5;
-		break;
-	case 0x6b:
-		printf("LCOL"); lv += 0x2;
-		break;
-	case 0x6c:
-		printf("LTYPE"); lv += 0x2;
-		break;
-	case 0x6d:
-		printf("LWA"); lv += 0x5;
-		break;
-	case 0x6e:
-		printf("LDEGS"); lv++;
-		break;
-	case 0x6f:
-		printf("LDEGE"); lv++;
-		break;
-	case 0x70:
-		printf("LXY"); lv += 0x5;
-		break;
-	case 0x71:
-		printf("LASER2"); lv++;
-		break;
-	default:
-		break;
-	}
-}
-static void EclCmd8(char* buffer, int& lv)
-{
+#define AC(x) fread(&eInsCont[0], x, 1, fp); lv+= x;
 
-	unsigned char chara = buffer[lv];
-	switch (chara)
+	while (!feof(fp))
 	{
-	case 0x80:
-		printf("LLSET"); lv++;
-		break;
-	case 0x81:
-		printf("LLOPEN"); lv += 0x2;
-		break;
-	case 0x82:
-		printf("LLCLOSE"); lv += 0x2;
-		break;
-	case 0x83:
-		printf("LLCLOSEL"); lv += 0x2;
-		break;
-	case 0x84:
-		printf("LLDEGR"); lv += 0x3;
-		break;
-	case 0x85:
-		printf("HLASER"); lv++;
-		break;
-	default:
-		break;
-	}
-}
-static void EclCmd9(char* buffer, int& lv)
-{
-	unsigned char chara = buffer[lv];
-	switch (chara)
-	{
-	case 0x90:
-		printf("DRAW_ON"); lv++;
-		break;
-	case 0x91:
-		printf("DRAW_OFF"); lv++;
-		break;
-	case 0x92:
-		printf("CLIP_ON"); lv++;
-		break;
-	case 0x93:
-		printf("CLIP_OFF"); lv++;
-		break;
-	case 0x94:
-		printf("DAMAGE_ON"); lv++;
-		break;
-	case 0x95:
-		printf("DAMAGE_OFF"); lv++;
-		break;
-	case 0x96:
-		printf("HITSB_ON"); lv++;
-		break;
-	case 0x97:
-		printf("HITSB_OFF"); lv++;
-		break;
-	case 0x98:
-		printf("RLCHG_ON"); lv++;
-		break;
-	case 0x99:
-		printf("RLCHG_OFF"); lv++;
-		break;
-	default:
-		break;
-	}
-}
-static void EclCmdA(char* buffer, int& lv)
-{
 
-	unsigned char chara = buffer[lv];
-	switch (chara)
-	{
-	case 0xa0:
-		printf("ANM"); lv += 0x3;
-		break;
-	case 0xa1:
-		printf("PSE"); lv += 0x2;
-		break;
-	case 0xa2:
-		printf("INT"); lv += 0x2;
-		break;
-	case 0xa3:
-		printf("EXDEGD"); lv += 0x2;
-		break;
-	case 0xa4:
-		printf("ENEMYSET"); lv += 0x6;
-		break;
-	case 0xa5:
-		printf("ENEMYSETD"); lv += 0x7;
-		break;
-	case 0xa6:
-		printf("HITXY"); lv += 0x5;
-		break;
-	case 0xa7:
-		printf("ITEM"); lv += 0x2;
-		break;
-	case 0xa8:
-		printf("STG4EFC"); lv += 0x2;
-		break;
-	case 0xa9:
-		printf("ANMEX"); lv += 0x2;
-		break;
-	case 0xaa:
-		printf("BITLASER"); lv += 0x2;
-		break;
-	case 0xab:
-		printf("BITATTACK"); lv += 0x5;
-		break;
-	case 0xac:
-		printf("BITCMD"); lv += 0x6;
-		break;
-	case 0xad:
-		printf("BOSSSET"); lv += 0x2;
-		break;
-	case 0xae:
-		printf("CEFC"); lv += 0x6;
-		break;
-	case 0xaf:
-		printf("STG3EFC"); lv += 0x1;
-		break;
-	default:
-		break;
-	}
-}
-static void EclCmdB(char* buffer, int& lv)
-{
+		fread(&cmd, 1, 1, fp);
+		lv++;
+		switch (cmd)
+		{
+		case 0x00: /*fseek(fp, -1, SEEK_SET); address = lv; if (sub.find(address) == sub.end()) { sub.insert({address, address}); }
+				 fseek(fp, 1, SEEK_SET); */AC(8) break;
+		case 0x02: GLADD break;
+		case 0x03: GLADD AC(2)  break;
+		case 0x04: GSADD 
+			break;
+		case 0x06: GLADD AC(4) break;
+		case 0x07: GLADD AC(4) break;
+		case 0x08: GLADD GLADD GLADD GLADD break;
+		case 0x09: GLADD break;
+		case 0x0A: GLADD AC(4) break;
+		case 0x0B: GLADD AC(4) break;
+		case 0x0C: GLADD AC(5) break;
+		case 0x0D: AC(1) break;
+				    
+		case 0x10: AC(2) break;
+		case 0x11: AC(2) break;
+		case 0x12: AC(2) break;
+		case 0x13: AC(3) break;
+		case 0x14: AC(0xb) break;
+		case 0x15: AC(8) break;
+		case 0x16: AC(8) break;
+		case 0x17: AC(4) break;
+		case 0x18: AC(4) break;
+		case 0x19: AC(6) break;
+		case 0x1A: AC(2) break;
+		case 0x1B: AC(2) break;
+		case 0x1C: AC(2) break;
+		case 0x1D: AC(3) break;
+		case 0x1E: AC(6) break;
+		case 0x1F: AC(1) break;
+				    
+		case 0x20: AC(1) break;
+		case 0x21: AC(1) break;
+		case 0x24: AC(4) break;
+		case 0x25: AC(4) break;
+		case 0x26: AC(4) break;
+		case 0x27: AC(4) break;
+		case 0x2E: AC(2) break;
+				    
+		case 0x41: AC(1) break;
+		case 0x42: AC(4) break;
+		case 0x43: AC(1) break;
+		case 0x44: AC(2) break;
+		case 0x45: AC(2) break;
+		case 0x46: AC(2) break;
+		case 0x47: AC(2) break;
+		case 0x48: AC(2) break;
+		case 0x49: AC(2) break;
+		case 0x4A: AC(1) break;
+		case 0x4B: AC(1) break;
+		case 0x4C: AC(1) break;
+		case 0x4D: AC(1) break;
+		case 0x4E: AC(1) break;
+		case 0x54: AC(1) break;
+				    
+		case 0x61: AC(1) break;
+		case 0x62: AC(4) break;
+		case 0x63: AC(4) break;
+		case 0x64: AC(4) break;
+		case 0x65: AC(2) break;
+		case 0x66: AC(2) break;
+		case 0x67: AC(1) break;
+		case 0x68: AC(1) break;
+		case 0x69: AC(4) break;
+		case 0x6A: AC(4) break;
+		case 0x6B: AC(1) break;
+		case 0x6C: AC(1) break;
+		case 0x6D: AC(4) break;
+		case 0x70: AC(4) break;
+				    
+		case 0x81: AC(1) break;
+		case 0x82: AC(1) break;
+		case 0x83: AC(1)  break;
+		case 0x84: AC(2) break;
+				    
+		case 0xA0: AC(2) break;
+		case 0xA1: AC(1) break;
+		case 0xA2: AC(1) break;
+		case 0xA3: AC(1) break;
+		case 0xA4: AC(5) break;
+		case 0xA5: AC(6) break;
+		case 0xA6: AC(4) break;
+		case 0xA7: AC(1) break;
+		case 0xA8: AC(1) break;
+		case 0xA9: AC(1) break;
+		case 0xAA: AC(1) break;
+		case 0xAB: AC(4) break;
+		case 0xAC: AC(5) break;
+		case 0xAD: AC(1) break;
+		case 0xAE: AC(5) break;
+				    
+		case 0xB0: AC(2) break;
+		case 0xB1: AC(5) break;
+		case 0xB2: AC(2) break;
+		case 0xB3: AC(2) break;
+		case 0xB4: AC(2) break;
+		case 0xB5: AC(2) break;
+		case 0xB6: AC(5) break;
+		case 0xB7: AC(1) break;
+		case 0xB8: AC(2) break;
+		case 0xB9: AC(5) break;
+		case 0xBA: GLADD break;
+		case 0xBB: GLADD break;
+		case 0xBC: AC(1) break;
+		case 0xBD: AC(1) break;
+		case 0xBE: GLADD break;
+		}
 
-	unsigned char chara = buffer[lv];
-	switch (chara)
-	{
-	case 0xb0:
-		printf("MOVR"); lv += 0x3;
-		break;
-	case 0xb1:
-		printf("MOVC"); lv += 0x6;
-		break;
-	case 0xb2:
-		printf("ADD"); lv += 0x3;
-		break;
-	case 0xb3:
-		printf("SUB"); lv += 0x3;
-		break;
-	case 0xb4:
-		printf("SINL"); lv += 0x3;
-		break;
-	case 0xb5:
-		printf("COSL"); lv += 0x3;
-		break;
-	case 0xb6:
-		printf("MOD"); lv += 0x6;
-		break;
-	case 0xb7:
-		printf("RND"); lv += 0x2;
-		break;
-	case 0xb8:
-		printf("CMPR"); lv += 0x3;
-		break;
-	case 0xb9:
-		printf("CMPC"); lv += 0x6;
-		break;
-	case 0xba:
-		printf("JL"); lv += 0x5;
-		break;
-	case 0xbb:
-		printf("JS"); lv += 0x5;
-		break;
-	case 0xbc:
-		printf("INC"); lv += 0x2;
-		break;
-	case 0xbd:
-		printf("DEC"); lv += 0x2;
-		break;
-	case 0xbe:
-		printf("JEQ"); lv += 0x5;
-		break;
-	default:
-		break;
+#ifdef CLB_DEBUG
+		if (feof(fp))
+		{
+			printf("\nEnd of file.\n");
+		}
+#endif // 
+
 	}
 }

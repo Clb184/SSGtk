@@ -12,22 +12,12 @@ void SCLDecode(const char* f)
 		exit(-1);
 	}
 
-	readIns(fp);
+	readSCLIns(fp);
 	fclose(fp);
 }
 
-void readIns(FILE*& fp)
+void readSCLIns(FILE*& fp)
 {
-#define CH rC(fp, 0, true);
-#define W rC(fp, 0b1, true);
-#define DW rC(fp, 0b10, true);
-
-#define B rC(fp, 0b0, false);
-#define UW rC(fp, 0b1, false);
-#define UDW rC(fp, 0b11, false);
-
-#define STR rStr(fp);
-#define CO printf(", ");
 
 
 	BYTE cmd;
@@ -72,46 +62,3 @@ void readIns(FILE*& fp)
 #endif // CLB_DEBUG
 	}
 }
-
-void rC(FILE*& fp, uint8_t s, bool sign)
-{
-
-	int var;
-	switch (s)
-	{
-	case (0b0):
-		fread(&var, 1, 1, fp);
-		if(!sign)
-			printf("%d", (uint8_t)var);
-		else
-			printf("%d", (int8_t)var);
-		break;
-	case (0b1):
-		fread(&var, 2, 1, fp);
-		if (!sign)
-			printf("%d", (uint16_t)var);
-		else
-			printf("%d", (int16_t)var);
-		break;
-	case (0b10):
-		fread(&var, 4, 1, fp);
-		if (!sign)
-			printf("%d", (uint32_t)var);
-		else
-			printf("%d", (int32_t)var);
-		break;
-	}
-}
-
-void rStr(FILE*& fp)
-{
-	std::string str;
-	BYTE c;
-	do
-	{
-		fread(&c, 1, 1, fp);
-		str.push_back(c);
-	} while (c != 0x00);
-	std::cout << str;
-}
-

@@ -20,6 +20,7 @@ int main()
 	switch (mode)
 	{
 	case 'E':
+		ECLDecode(fName.c_str()); break;
 		//ECLDecode(buffer, lSize); break;
 	case 'S':
 		SCLDecode(fName.c_str()); break;
@@ -32,8 +33,13 @@ int main()
 
 int main(int argc, char* argv[])
 {
-	std::string par;
-	par = argv[1];
+	std::string par = argv[1];
+
+
+	if (argv[1] == NULL || argv[2] == NULL)
+	{
+		prntUse();
+	}
 
 	if(par == "sd")
 	{
@@ -46,15 +52,12 @@ int main(int argc, char* argv[])
 	}
 	else if (par == "ed")
 	{
-		printf("Still working\n"); prntUse();
+		//printf("Still working\n"); prntUse();
+		ECLDecode(argv[2]);
 	}
 	else if (par == "ec")
 	{
 		printf("Still working\n"); prntUse();
-	}
-	else
-	{
-		prntUse();
 	}
 }
 #endif // !
