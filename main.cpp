@@ -1,5 +1,6 @@
 #include "scl_decode.h"
 #include "ecl_decode.h"
+#include "scl_encode.h"
 //#include "asm_ecl.cpp"
 
 void prntUse()
@@ -15,10 +16,13 @@ int main()
 	int number_1 = 3;
 	char mode;
 	std::string fName;
-	std::cout << "Mode (E / S): "; std::cin >> mode;
+	std::cout << "Mode (E / S / C / D): "; std::cin >> mode;
 	std::cout << "Nombre del archivo: "; std::cin >> fName;
 	switch (mode)
 	{
+
+	case 'C':
+		SCLEncode(fName.c_str(), "test.scl"); break;
 	case 'E':
 		ECLDecode(fName.c_str()); break;
 		//ECLDecode(buffer, lSize); break;
@@ -48,7 +52,12 @@ int main(int argc, char* argv[])
 	}
 	else if(par == "sc")
 	{
-		printf("Still working\n"); prntUse();
+		//printf("Still working\n"); prntUse();
+		if (argv[3] == NULL)
+		{
+			printf("\nsc parameters: intput output\n");
+		}
+		SCLEncode(argv[2], argv[3]);
 	}
 	else if (par == "ed")
 	{

@@ -32,6 +32,7 @@ void rC(FILE*& fp, uint8_t s, bool);
 void rAdd(FILE*& fp, ADDRESS&);
 void rStr(FILE*& fp);
 
+
 static InsMap SCLIns =
 {
 	{0x00, "TIME"},

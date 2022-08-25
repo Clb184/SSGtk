@@ -71,10 +71,11 @@ void readECLIns(FILE*& fp, ADDRESS sub, ADDRESS lab, uint32_t enm)
 	{
 		if (sub.find(pos) != sub.end())
 		{
+			/*
 			if (sub[pos] == 52)
 			{
 				int a = 0;
-			}
+			}*/
 			printf("\n\n@Sub%d:", sub[pos]);
 		}
 		if (lab.find(pos) != lab.end())
